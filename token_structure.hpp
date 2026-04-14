@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 
 enum class TokenType
 {
@@ -14,5 +15,8 @@ enum class TokenType
 struct Token
 {
     TokenType type;
-    std::string value; // for numbers ("123") or operators ("+", "-", "*", "/")
+    std::string value;
+
+    // Numeric value, populated for Literal tokens
+    std::optional<double> number;
 };
