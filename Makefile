@@ -1,6 +1,6 @@
 # ===== compiler =====
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -Icore -Iparser -Itokenizer -Iutils
+CXXFLAGS = -std=c++20 -Wall -Wextra -Wpedantic -Icore -Iparser -Itokenizer -Iutils
 
 # ===== target =====
 TARGET = parser_app
@@ -11,7 +11,8 @@ SRCS = \
     core/display_welcome.cpp \
     core/recieve_expression.cpp \
     parser/parser.cpp \
-    tokenizer/tokenizer.cpp
+    tokenizer/tokenizer.cpp \
+    utils/automaton.cpp
 
 # ===== object files =====
 OBJS = $(SRCS:.cpp=.o)

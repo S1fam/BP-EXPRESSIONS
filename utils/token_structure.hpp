@@ -11,7 +11,7 @@ enum class TokenType
     Divide
 };
 
-struct token
+struct Token
 {
     TokenType type;
     std::string value; // for numbers ("123") or operators ("+", "-", "*", "/")

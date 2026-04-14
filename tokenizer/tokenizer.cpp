@@ -1,66 +1,64 @@
 #include "tokenizer.hpp"
 
-bool tokenizeExpression(const std::string& expression, std::vector<token>& tokens)
-{
-    size_t i = 0;
+#include <iostream>
+#include <cstdlib>
+#include <cctype>
 
+static void exitWithError(const char* message)
+{
+    std::cerr << message << std::endl;
+    std::exit(1);
+}
+
+bool Tokenizer::tokenize(const std::string& expression, std::vector<Token>& tokens) {
+    size_t i = 0;
     while (i < expression.size())
     {
         char c = expression[i];
-        if (std::isspace(c))
+
+        if (std::isspace(static_cast<unsigned char>(c)))
         {
-            i++;
+            ++i;
             continue;
         }
 
-        if (std::isdigit(c)) 
+        if (std::isdigit(static_cast<unsigned char>(c)))
         {
             std::string number;
-            while (i < expression.size() && std::isdigit(expression[i]))
+            while (i < expression.size() && std::isdigit(static_cast<unsigned char>(expression[i])))
             {
-                number += expression[i];
-                i++;
+                number += expression[i++];
             }
             tokens.push_back({TokenType::Literal, number});
             continue;
         }
-        
+
         switch (c)
         {
-        case '+':
-            tokens.push_back({TokenType::Plus, "+"});
-            i++;
-            break;
-        case '-':
-            tokens.push_back({TokenType::Minus, "-"});
-            i++;
-            break;
-        case '*':
-            tokens.push_back({TokenType::Multiply, "*"});
-            i++;
-            break;
-        case '/':
-            tokens.push_back({TokenType::Divide, "/"});
-            i++;
-            break;
-        default:
-            return false; // Invalid character
+            case '+': tokens.push_back({TokenType::Plus, "+"}); break;
+            case '-': tokens.push_back({TokenType::Minus, "-"}); break;
+            case '*': tokens.push_back({TokenType::Multiply, "*"}); break;
+            case '/': tokens.push_back({TokenType::Divide, "/"}); break;
+            default:
+                exitWithError("Error: Invalid character in expression.");
         }
+        ++i;
     }
+
+    if (!validate(tokens)) exitWithError("Error: Invalid syntax in expression.");
     return true;
 }
 
-bool validateTokens(const std::vector<token>& tokens)
-{
+bool Tokenizer::validate(const std::vector<Token>& tokens) {
     if (tokens.empty()) return false;
-
     for (size_t i = 0; i < tokens.size(); ++i)
     {
-        if (i % 2 == 0 && tokens[i].type != TokenType::Literal) // Expecting a literal at even indices
+        if ((i % 2 == 0 && tokens[i].type != TokenType::Literal) ||
+            (i % 2 == 1 && tokens[i].type == TokenType::Literal))
+        {
             return false;
-        if (i % 2 == 1 && tokens[i].type == TokenType::Literal) // Expecting an operator at odd indices
-            return false;
+        }
     }
-
+    if (tokens.back().type != TokenType::Literal) return false;
     return true;
 }

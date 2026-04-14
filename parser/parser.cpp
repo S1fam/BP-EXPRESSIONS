@@ -1,9 +1,29 @@
+#include <iostream>
 #include "parser.hpp"
+#include "tokenizer.hpp"
+#include "automaton.hpp"
 
-bool parseExpression(const std::string& expression, std::vector<token>& tokens)
+bool Parser::parse(const std::string& expression)
 {
-    // silence unused parameter warning for now
-    (void)expression;
-    (void)tokens;
-    return true; // Placeholder for actual parsing logic
+    getTokens(expression);
+    validateTokens();
+    
+    Automaton automaton;
+    return automaton.run(tokens_);
+}
+
+void Parser::getTokens(const std::string& expression) {
+    Tokenizer tokenizer;
+    if (!tokenizer.tokenize(expression, tokens_)) {
+        std::cerr << "Lexical error\n";
+        exit(1);
+    }
+}
+
+void Parser::validateTokens() {
+    Tokenizer tokenizer;
+    if (!tokenizer.validate(tokens_)) {
+        std::cerr << "Syntax error\n";
+        exit(1);
+    }
 }

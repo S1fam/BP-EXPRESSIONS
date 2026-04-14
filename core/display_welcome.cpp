@@ -9,4 +9,5 @@ void displayWelcome()
     std::cout << "|  =     =         to display help         =     =  |" << std::endl;
     std::cout << "| =      =      (or exit --> ctrl+c)       =      = |" << std::endl;
     std::cout << "===== ===== ===== ===== ===== ===== ===== ===== =====" << std::endl;
+    std::cout << "\nExpression: ";
 }

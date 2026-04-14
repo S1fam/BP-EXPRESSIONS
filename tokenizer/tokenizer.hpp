@@ -4,5 +4,8 @@
 #include <vector>
 #include "token_structure.hpp"
 
-bool tokenizeExpression(const std::string& expression, std::vector<token>& tokens);
-bool validateTokens(const std::vector<token>& tokens);
+class Tokenizer {
+public:
+    bool tokenize(const std::string& expression, std::vector<Token>& tokens);
+    bool validate(const std::vector<Token>& tokens);
+};

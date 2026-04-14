@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <csignal>
-#include <thread>
 #include <chrono>
 #include "display_welcome.hpp"
 #include "recieve_expression.hpp"
@@ -11,31 +10,22 @@
 
 void signalHandler(int signal);
 
-int main(int argc, char** argv)
+int main()
 {
     std::signal(SIGINT, signalHandler); // Set up signal handler for Ctrl+C
 
-    std::cout << argc << argv[0] << std::endl; // to silence unused parameter warnings
     displayWelcome();
 
     std::string expression; // user input expression
     std::getline(std::cin, expression); // read user input
-
     ReceiveExpressionOrExit(expression);
 
-    std::vector<token> tokens;
-    if (!tokenizeExpression(expression, tokens)) 
+    Parser parser;
+    if (!parser.parse(expression))
     {
-        std::cout << "Error: Invalid character in expression." << std::endl;
+        std::cout << "Parsing error\n";
         return 1;
     }
-    if (!validateTokens(tokens))
-    {
-        std::cout << "Error: Invalid syntax in expression." << std::endl;
-        return 1;
-    }
-    
-    parseExpression(expression, tokens);
 
     std::cout << "ZZZ..." << std::endl;
 
