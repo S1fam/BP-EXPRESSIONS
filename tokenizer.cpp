@@ -17,11 +17,12 @@ bool Tokenizer::tokenize(const std::string& expression, std::vector<Token>& toke
     {
         char c = expression[i];
 
-        if (std::isspace(static_cast<unsigned char>(c))) { ++i; continue; }
+        if (std::isspace(static_cast<unsigned char>(c))) { ++i; continue; } // Skip whitespace.
 
-        if (std::isdigit(static_cast<unsigned char>(c)))
+        if (std::isdigit(static_cast<unsigned char>(c))) // Start of a number literal. 
         {
             std::string number;
+            // Consume all consecutive digits to form the complete number.
             while (i < expression.size() && std::isdigit(static_cast<unsigned char>(expression[i])))
                 number += expression[i++];
 
@@ -49,8 +50,8 @@ bool Tokenizer::validate(const std::vector<Token>& tokens)
     if (tokens.empty()) return false;
     for (size_t i = 0; i < tokens.size(); ++i)
     {
-        bool expectLiteral = (i % 2 == 0);
-        bool isLiteral     = (tokens[i].type == TokenType::Literal);
+        bool expectLiteral = (i % 2 == 0); // Even indices should be literals, odd indices operators.
+        bool isLiteral = (tokens[i].type == TokenType::Literal);
         if (expectLiteral != isLiteral) return false;
     }
     return tokens.back().type == TokenType::Literal;

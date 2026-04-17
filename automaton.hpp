@@ -7,112 +7,84 @@
 #include <functional>
 #include "token_structure.hpp"
 
-// ── States ────────────────────────────────────────────────────────────────────
-
-enum class State { qs, ql, qp, qm, qn, qd, qf };
-
+enum class State { qs, ql, qp, qm, qn, qd, qf }; // set of states
 std::string stateToStr(State s);
 
-// ── Stack symbol types ────────────────────────────────────────────────────────
-
-enum class NonTerminal { L, P, M, N, D, S };
-
+enum class NonTerminal { L, P, M, N, D, S }; // set of non-input (Non-Terminal) stack symbols
 std::string ntToStr(NonTerminal nt);
 
-struct BottomMarker {};
+struct BottomMarker {}; // '#' at the bottom of the stack
 
-// A stack symbol is exactly one of: a terminal Token, a NonTerminal marker,
-// or the bottom-of-stack sentinel. std::variant handles lifetimes safely.
 struct StackSymbol
 {
+    // Stack symbol is either Terminal (Token/input), Non-Terminal or #
     std::variant<Token, NonTerminal, BottomMarker> data;
 
-    // Optional numeric value bound to this symbol (meaningful for L markers)
+    // Optional numeric value bound to L markers on stack
     std::optional<double> value;
 
     bool isTerminal()    const { return std::holds_alternative<Token>(data); }
     bool isNonTerminal() const { return std::holds_alternative<NonTerminal>(data); }
     bool isBottom()      const { return std::holds_alternative<BottomMarker>(data); }
 
-    const Token&       asToken() const { return std::get<Token>(data); }
-    NonTerminal        asNT()    const { return std::get<NonTerminal>(data); }
+    const Token& asToken() const { return std::get<Token>(data); } // returns reference to Token if used on Terminal
+    NonTerminal  asNT()    const { return std::get<NonTerminal>(data); } // returns NonTerminal if used on Non-Terminal
 };
 
-// ── Factory helpers (match the old API names) ─────────────────────────────────
+// Factory helpers - help shorten rule definitions
 
+// T(...) creates a Terminal StackSymbol with the given token type and value.
 inline StackSymbol T(TokenType type, const std::string& val)
 {
     return StackSymbol{ Token{type, val, std::nullopt}, std::nullopt };
 }
 
+// NT(...) creates a Non-Terminal StackSymbol with the given symbol and no value.
 inline StackSymbol NT(NonTerminal nt)
 {
     return StackSymbol{ nt, std::nullopt };
 }
 
+// BOTTOM() creates the bottom-of-stack marker.
 inline StackSymbol BOTTOM()
 {
     return StackSymbol{ BottomMarker{}, std::nullopt };
 }
 
-// ── Rule building blocks ──────────────────────────────────────────────────────
-
+// StackCondition specifies condition on the stack for rule matching
 struct StackCondition
 {
-    size_t     depth;   // 1 = deepest NT, 2 = second deepest, …
+    size_t depth; // 1 = top of stack, 2 = one below top, etc.
     NonTerminal symbol;
 };
 
 inline StackCondition C(size_t depth, NonTerminal nt) { return {depth, nt}; }
 
-// A Rule describes one transition of the automaton.
-//
-// Matching:
-//   - from_state must equal current state
-//   - input (nullopt = epsilon) must match current input token type
-//   - every condition must be satisfied (depth-th NT on stack equals symbol)
-//   - guard (if set) is an extra predicate evaluated against the whole automaton
-//
-// Application:
-//   - replacements[i] replaces the stack position identified by conditions[i]
-//   - if use_deepest_LML is true, a special LML-pattern search drives application
 struct Rule
 {
-    int         id;
-    std::string description;
+    int id;
+    std::string description; // formal description of the rule for output
 
     State from_state;
     State to_state;
 
-    std::optional<TokenType> input;  // nullopt = epsilon
+    std::optional<TokenType> input; // nullopt = epsilon
 
-    std::vector<StackCondition>          conditions;
+    std::vector<StackCondition> conditions;
     std::vector<std::vector<StackSymbol>> replacements;
 
-    // Extra guard predicate: called only after basic matching passes.
-    // Replaces ad-hoc boolean flags like require_no_M.
-    std::function<bool(const struct Automaton&)> guard;
+    std::function<bool(const struct Automaton&)> guard; // used for rule 11 (no M left on stack)
 
-    // When true, application targets the deepest L–M–L triple in the stack
-    // rather than using the conditions/replacements arrays directly.
-    bool use_deepest_LML = false;
+    bool use_deepest_LML = false; // true for rule 12 to process the deepest LML
 };
-
-// ── Automaton — pure data ─────────────────────────────────────────────────────
-//
-// The automaton holds only configuration state: current state, stack, and the
-// rule table.  The Parser drives the step loop and handles I/O.
 
 struct Automaton
 {
-    State                   state;
-    std::vector<StackSymbol> stack;   // back() = top
-    std::vector<Rule>        rules;
-
-    // Re-initialise to start configuration with the given initial state symbol.
+    State state;
+    std::vector<StackSymbol> stack; // back() = top
+    std::vector<Rule> rules;
     void reset();
 };
 
-// Populate the rule table that matches the thesis example (VŘČPHZA, example 2).
-// Returns a ready-to-use Automaton.
+// Populates the Automaton with rules from the thesis example (VŘČPHZA, example 5.2.1).
 Automaton buildAutomaton();

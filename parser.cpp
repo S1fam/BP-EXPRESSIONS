@@ -1,9 +1,8 @@
 #include <iostream>
+#include <sstream>
 #include <algorithm>
 #include "parser.hpp"
 #include "tokenizer.hpp"
-
-// ── Public entry point ────────────────────────────────────────────────────────
 
 bool Parser::parse(const std::string& expression)
 {
@@ -11,26 +10,23 @@ bool Parser::parse(const std::string& expression)
 
     automaton_ = buildAutomaton();
     input_pos_ = 0;
-    result_    = std::nullopt;
+    result_ = std::nullopt;
 
-    printConfiguration();
-    std::cout << "\n";
+    std::cout << theoreticalConfig() << " --> " << practicalConfig() << "\n"; // initial configuration
 
-    constexpr int MAX_STEPS = 1000;
+    constexpr int MAX_STEPS = 10000;
     for (int step = 0; step < MAX_STEPS; ++step)
     {
-        if (tryPop())          continue;
+        if (tryPop()) continue;
 
         const Rule* rule = findMatchingRule();
-        if (!rule)             break;
+        if (!rule) break;
 
         applyRule(*rule);
     }
 
     return (automaton_.state == State::qf && input_pos_ == tokens_.size());
 }
-
-// ── Setup ─────────────────────────────────────────────────────────────────────
 
 void Parser::tokenise(const std::string& expression)
 {
@@ -43,8 +39,7 @@ void Parser::tokenise(const std::string& expression)
     }
 }
 
-// ── Stack queries ─────────────────────────────────────────────────────────────
-
+// i = 0 is deepest NonTerminal, used for deepestLML, we want the lowest i where LML appears.
 std::vector<size_t> Parser::ntIndices() const
 {
     std::vector<size_t> out;
@@ -69,17 +64,16 @@ std::optional<size_t> Parser::deepestLMLPosition() const
 {
     auto idx = ntIndices();
     for (size_t i = 0; i + 2 < idx.size(); ++i)
-        if (automaton_.stack[idx[i]].asNT()   == NonTerminal::L &&
+        if (automaton_.stack[idx[i]].asNT() == NonTerminal::L &&
             automaton_.stack[idx[i+1]].asNT() == NonTerminal::M &&
             automaton_.stack[idx[i+2]].asNT() == NonTerminal::L)
             return i;
     return std::nullopt;
 }
 
-// ── Rule matching ─────────────────────────────────────────────────────────────
-
-bool Parser::matchesState(const Rule& rule)      const { return automaton_.state == rule.from_state; }
-bool Parser::matchesGuard(const Rule& rule)      const { return !rule.guard || rule.guard(automaton_); }
+// Rule matching
+bool Parser::matchesState(const Rule& rule) const { return automaton_.state == rule.from_state; }
+bool Parser::matchesGuard(const Rule& rule) const { return !rule.guard || rule.guard(automaton_); }
 
 bool Parser::matchesInput(const Rule& rule) const
 {
@@ -99,26 +93,26 @@ bool Parser::matchesConditions(const Rule& rule) const
     return true;
 }
 
+// return first matching rule in automaton_.rules order
 const Rule* Parser::findMatchingRule() const
 {
     for (const auto& rule : automaton_.rules)
     {
-        if (!matchesState(rule))                                   continue;
-        if (!matchesInput(rule))                                   continue;
-        if (!matchesConditions(rule))                              continue;
-        if (!matchesGuard(rule))                                   continue;
-        if (rule.use_deepest_LML && !deepestLMLPosition())         continue;
+        if (!matchesState(rule)) continue;
+        if (!matchesInput(rule)) continue;
+        if (!matchesConditions(rule)) continue;
+        if (!matchesGuard(rule)) continue;
+        if (rule.use_deepest_LML && !deepestLMLPosition()) continue;
         return &rule;
     }
     return nullptr;
 }
 
-// ── Pop step ──────────────────────────────────────────────────────────────────
-
+// Pop step - consumes a matching terminal, binds Literal value to its L
 bool Parser::tryPop()
 {
     if (input_pos_ >= tokens_.size()) return false;
-    if (automaton_.stack.empty())     return false;
+    if (automaton_.stack.empty()) return false;
 
     auto& top = automaton_.stack.back();
     const Token& tok = tokens_[input_pos_];
@@ -128,9 +122,7 @@ bool Parser::tryPop()
     automaton_.stack.pop_back();
     ++input_pos_;
 
-    // Bind the numeric value of a consumed Literal to the nearest unbound L.
-    // We skip Ls that already carry a value: those belong to a computed result
-    // (e.g. from a * or / reduction) and must not be overwritten by the raw input.
+    // Bind the numeric value of a consumed Literal to the nearest unbound L. Skip L markers with bound values
     if (tok.type == TokenType::Literal && tok.number)
     {
         for (int i = (int)automaton_.stack.size() - 1; i >= 0; --i)
@@ -148,55 +140,54 @@ bool Parser::tryPop()
     return true;
 }
 
-// ── Expand step ───────────────────────────────────────────────────────────────
-
+// Expand step - applies a matched rule
 void Parser::applyRule(const Rule& rule)
 {
-    // Rule 14 erases the last L. Capture its value before modification.
+    // Pre-compute the description before the stack is modified
+    // useful for rule 12 which formats the description specifically
+    std::string desc = ruleDescription(rule);
+
+    // Rule 14 erases the last L (result). We capture its value before modification.
     if (rule.id == 14)
     {
-        auto lIdx = ntIndex(1);
-        if (lIdx && automaton_.stack[*lIdx].asNT() == NonTerminal::L)
-            result_ = automaton_.stack[*lIdx].value;
+        auto leftIdx = ntIndex(1);
+        if (leftIdx && automaton_.stack[*leftIdx].asNT() == NonTerminal::L)
+            result_ = automaton_.stack[*leftIdx].value;
     }
 
     if (rule.use_deepest_LML)
-        applyDeepestLML(rule);
+        applyDeepestLML(rule); // rule 12
     else
-        applyConditionsRule(rule);
+        applyConditionsRule(rule); // rest of the rules
 
     automaton_.state = rule.to_state;
-    printExpandStep(rule);
+    printExpandStep(rule, desc);
 }
 
-// Rule 12 — reduce the deepest L M L on the stack to a single L.
-void Parser::applyDeepestLML(const Rule& /*rule*/)
+// Rule 12: qm,ε((k-1)L,kM,(k+1)L) -> qm(ε,L,ε)
+void Parser::applyDeepestLML(const Rule&)
 {
     auto pos = deepestLMLPosition();
     if (!pos) return;
 
     auto indices = ntIndices();
-    size_t i0 = indices[*pos];      // bottom L  (left operand)
-    size_t i1 = indices[*pos + 1];  // M marker
-    size_t i2 = indices[*pos + 2];  // top    L  (right operand)
+    size_t i0 = indices[*pos]; // bottom L (left operand)
+    size_t i1 = indices[*pos + 1]; // M marker
+    size_t i2 = indices[*pos + 2]; // top L (right operand)
 
     auto left  = automaton_.stack[i0].value;
     auto right = automaton_.stack[i2].value;
 
-    // Find the operator terminal that sits between the bottom-L and the M.
-    TokenType opTy = TokenType::Minus;
-    for (size_t k = i0 + 1; k < i1; ++k)
-        if (automaton_.stack[k].isTerminal())
-            { opTy = automaton_.stack[k].asToken().type; break; }
+    TokenType operation = TokenType::Minus;
 
-    // Erase the three NonTerminals highest-index-first.
+    // Erase NonTerminals highest-index-first.
     automaton_.stack.erase(automaton_.stack.begin() + (ptrdiff_t)i2);
     automaton_.stack.erase(automaton_.stack.begin() + (ptrdiff_t)i1);
     automaton_.stack.erase(automaton_.stack.begin() + (ptrdiff_t)i0);
 
     StackSymbol result = NT(NonTerminal::L);
     if (left && right)
-        result.value = compute(*left, opTy, *right);
+        result.value = compute(*left, operation, *right);
 
     automaton_.stack.insert(automaton_.stack.begin() + (ptrdiff_t)i0, result);
 }
@@ -204,110 +195,91 @@ void Parser::applyDeepestLML(const Rule& /*rule*/)
 // Generic conditions/replacements rule.
 void Parser::applyConditionsRule(const Rule& rule)
 {
-    // ── Step 1: Compute the value for any new L marker ───────────────────────
-    //
-    // This must happen BEFORE we touch the stack, while all depth indices
-    // still resolve correctly.
+    std::optional<double> newLValue = computeNewLValue(rule); // value or nullopt for rules that dont compute new L
 
-    std::optional<double> newLValue = computeNewLValue(rule);
-
-    // ── Step 2: Build (stack-index, replacement) pairs ───────────────────────
-
-    struct Op { size_t idx; std::vector<StackSymbol> repl; };
-    std::vector<Op> ops;
-    ops.reserve(rule.conditions.size());
+    // Build (stack-index, replacement) pairs for each condition
+    struct Operation { size_t idx; std::vector<StackSymbol> repl; };
+    std::vector<Operation> operations;
+    operations.reserve(rule.conditions.size());
 
     for (size_t i = 0; i < rule.conditions.size(); ++i)
     {
         auto idx = ntIndex(rule.conditions[i].depth);
-        if (!idx) { std::cerr << "ERROR: depth " << rule.conditions[i].depth
-                               << " not found for rule " << rule.id << "\n"; return; }
-        ops.push_back({ *idx, rule.replacements[i] });
+        if (!idx) 
+        { 
+            std::cerr << "ERROR: depth " << rule.conditions[i].depth << " not found for rule " << rule.id << "\n"; 
+            return; 
+        }
+        operations.push_back({ *idx, rule.replacements[i] });
     }
 
-    // Sort descending so each erasure leaves earlier indices intact.
-    std::sort(ops.begin(), ops.end(), [](const Op& a, const Op& b){ return a.idx > b.idx; });
+    // Sort descending so we take bigger indices (deeper in stack) first
+    std::sort(operations.begin(), operations.end(), [](const Operation& a, const Operation& b){ return a.idx > b.idx; });
 
-    // ── Step 3: Preserve or compute values for any new L in replacements ──────
-    //
-    // Two cases:
-    //   A) A rule that COMPUTES a new value (rules 7, 9, 13): newLValue holds the
-    //      result; stamp it onto every new L in the replacements.
-    //   B) A rule that MOVES an existing L (e.g. rule 2 replaces an L with +PL,
-    //      keeping the old L's meaning): copy the old stack L's value into the
-    //      new L in the replacement so the value isn't silently dropped.
-
-    if (newLValue)
+    if (newLValue) // computeNewLValue returns a value
     {
-        // Case A: computed value.
-        for (auto& op : ops)
-            for (auto& sym : op.repl)
+        for (auto& op : operations)
+            for (auto& sym : op.repl) // look for new L in the replacement sequence
                 if (sym.isNonTerminal() && sym.asNT() == NonTerminal::L)
-                    sym.value = newLValue;
+                    sym.value = newLValue; // stamp the computed value onto the new L
     }
-    else
+    else // No computed value, we want to preserve an old value of L if it exists
     {
-        // Case B: value preservation — for each op that replaces an L with
-        // a sequence that also contains an L, forward the old value.
-        for (auto& op : ops)
+        for (auto& op : operations)
         {
-            // Is there an L at this stack position?
             if (!automaton_.stack[op.idx].isNonTerminal()) continue;
             if (automaton_.stack[op.idx].asNT() != NonTerminal::L) continue;
+
             auto oldVal = automaton_.stack[op.idx].value;
             if (!oldVal) continue;
 
-            // Does the replacement contain an L?  If so, forward the value.
             for (auto& sym : op.repl)
-                if (sym.isNonTerminal() && sym.asNT() == NonTerminal::L)
-                    { sym.value = oldVal; break; } // forward to the first new L only
+                if (sym.isNonTerminal() && sym.asNT() == NonTerminal::L) // apply to first new L in replacement
+                    { 
+                        sym.value = oldVal;
+                        break; 
+                    }
         }
     }
 
-    // ── Step 4: Apply replacements ───────────────────────────────────────────
-
-    for (const auto& op : ops)
+    // Apply replacements in descending index order (from deeper in stack to top)
+    for (const auto& op : operations)
     {
         automaton_.stack.erase(automaton_.stack.begin() + (ptrdiff_t)op.idx);
-        automaton_.stack.insert(automaton_.stack.begin() + (ptrdiff_t)op.idx,
-                                op.repl.rbegin(), op.repl.rend());
+        automaton_.stack.insert(automaton_.stack.begin() + (ptrdiff_t)op.idx, op.repl.rbegin(), op.repl.rend());
     }
 }
 
-// ── Value computation ─────────────────────────────────────────────────────────
-
-// Return the numeric value that should be bound to a new L produced by `rule`,
-// or nullopt if the rule doesn't produce a value-bearing L (or values are missing).
-// Called before any stack modification.
+// Returns numeric value that should be bound to L produced by rule, or nullopt if rule produces no value-bearing L.
 std::optional<double> Parser::computeNewLValue(const Rule& rule) const
 {
     switch (rule.id)
     {
-        // ── Rules 7 & 9: immediate multiply / divide ─────────────────────────
-        //   Stack: … L … N …   Input: literal
-        //   depth-2 = L (left), incoming token = right operand.
+        // rules 7 and 9: immediate multiply / divide
         case 7:
         case 9:
         {
-            auto lIdx = ntIndex(2);
-            if (!lIdx) return std::nullopt;
-            if (automaton_.stack[*lIdx].asNT() != NonTerminal::L) return std::nullopt;
+            auto leftIdx = ntIndex(2); // left operand L on stack is at depth 2
 
-            auto left  = automaton_.stack[*lIdx].value;
+            if (!leftIdx) return std::nullopt;
+            if (automaton_.stack[*leftIdx].asNT() != NonTerminal::L) return std::nullopt;
+
+            auto left  = automaton_.stack[*leftIdx].value;
             auto right = (input_pos_ < tokens_.size()) ? tokens_[input_pos_].number
-                                                       : std::nullopt;
-            TokenType opTy = (rule.id == 7) ? TokenType::Multiply : TokenType::Divide;
+                                                       : std::nullopt; // right operand is next input token
+            TokenType operation = (rule.id == 7) ? TokenType::Multiply : TokenType::Divide;
+
             if (left && right)
-                return compute(*left, opTy, *right);
+                return compute(*left, operation, *right);
             return std::nullopt;
         }
 
-        // ── Rule 13: addition fold (LPL → L) ─────────────────────────────────
-        //   depth-3 = bottom L (left), depth-1 = top L (right).
+        // addition qp,ε(1L,2P,3L) -> qp(L)
         case 13:
         {
             auto leftIdx  = ntIndex(3);
             auto rightIdx = ntIndex(1);
+
             if (!leftIdx || !rightIdx) return std::nullopt;
             if (automaton_.stack[*leftIdx].asNT()  != NonTerminal::L) return std::nullopt;
             if (automaton_.stack[*rightIdx].asNT() != NonTerminal::L) return std::nullopt;
@@ -319,72 +291,157 @@ std::optional<double> Parser::computeNewLValue(const Rule& rule) const
             return std::nullopt;
         }
 
-        // ── Rule 14: final acceptance — capture result before L is erased ────
-        //   depth-1 = the sole remaining L.
+        // Rule 14: final acceptance - capture result before L is erased
         case 14:
         {
-            auto lIdx = ntIndex(1);
-            if (!lIdx) return std::nullopt;
-            if (automaton_.stack[*lIdx].asNT() != NonTerminal::L) return std::nullopt;
-            // We return this so applyConditionsRule can stash it, but since the
-            // replacement is empty {} the value won't go into the stack.
-            // We capture it into result_ here directly instead.
-            const_cast<Parser*>(this)->result_ = automaton_.stack[*lIdx].value;
+            auto resultIdx = ntIndex(1);
+            if (!resultIdx) return std::nullopt;
+            if (automaton_.stack[*resultIdx].asNT() != NonTerminal::L) return std::nullopt;
+
+            const_cast<Parser*>(this)->result_ = automaton_.stack[*resultIdx].value; // store result
             return std::nullopt; // no new L is produced
         }
 
+        // remaining rules produce no value-bearing L, just structural changes, so return nullopt
         default:
             return std::nullopt;
     }
 }
 
-// ── Printing ──────────────────────────────────────────────────────────────────
-
-void Parser::printConfiguration() const
+// Printing
+// Helper: format a double without unnecessary trailing zeros.
+static std::string fmtNum(double v)
 {
-    std::cout << "(" << stateToStr(automaton_.state) << ", ";
+    if (v == (long long)v)
+        return std::to_string((long long)v);
+    std::ostringstream oss;
+    oss << v;
+    return oss.str();
+}
 
-    if (input_pos_ >= tokens_.size())
-        std::cout << "ε";
-    else
-        for (size_t i = input_pos_; i < tokens_.size(); ++i)
-            std::cout << tokens_[i].value;
+// Theoretical configuration
+// Input: remaining tokens with literals shown as 'l'
+std::string Parser::theoreticalInput() const
+{
+    if (input_pos_ >= tokens_.size()) return "ε";
 
-    std::cout << ", ";
+    std::string out;
+    for (size_t i = input_pos_; i < tokens_.size(); ++i)
+    {
+        const auto& tok = tokens_[i];
+        out += (tok.type == TokenType::Literal) ? "l" : tok.value;
+    }
+    return out;
+}
 
+std::string Parser::theoreticalStack() const
+{
+    std::string out;
     for (int i = (int)automaton_.stack.size() - 1; i >= 0; --i)
     {
         const auto& sym = automaton_.stack[i];
-        if      (sym.isTerminal())    std::cout << sym.asToken().value;
-        else if (sym.isNonTerminal()) std::cout << ntToStr(sym.asNT());
-        else                          std::cout << "#";
+        if (sym.isTerminal()) out += sym.asToken().value;
+        else if (sym.isNonTerminal()) out += ntToStr(sym.asNT());
+        else out += "#";
     }
+    return out;
+}
 
-    std::cout << ")";
+std::string Parser::theoreticalConfig() const
+{
+    return "(" + stateToStr(automaton_.state) + ", "
+               + theoreticalInput() + ", "
+               + theoreticalStack() + ")";
+}
+
+
+// Practical configuration
+// Input: remaining tokens with their actual values (numbers stay, ops stay)
+// Stack: L with a value shows the number L without a value still shows "L"
+std::string Parser::practicalInput() const
+{
+    if (input_pos_ >= tokens_.size()) return "ε";
+
+    std::string out;
+    for (size_t i = input_pos_; i < tokens_.size(); ++i)
+        out += tokens_[i].value;
+    return out;
+}
+
+std::string Parser::practicalStack() const
+{
+    std::string out;
+    for (int i = (int)automaton_.stack.size() - 1; i >= 0; --i)
+    {
+        const auto& sym = automaton_.stack[i];
+        if (sym.isBottom())
+        {
+            out += "#";
+        }
+        else if (sym.isTerminal())
+        {
+            out += sym.asToken().value;
+        }
+        else // NonTerminal
+        {
+            NonTerminal nt = sym.asNT();
+            if (nt == NonTerminal::L)
+                out += sym.value ? fmtNum(*sym.value) : "L";
+            else
+                out += ntToStr(nt);
+        }
+    }
+    return out;
+}
+
+std::string Parser::practicalConfig() const
+{
+    return "(" + stateToStr(automaton_.state) + ", "
+               + practicalInput() + ", "
+               + practicalStack() + ")";
+}
+
+// Step printing
+// For rule 12, compute the depths of the L-M-L positions, otherwise print rule.description
+std::string Parser::ruleDescription(const Rule& rule) const
+{
+    if (!rule.use_deepest_LML) return rule.description;
+
+    auto pos = deepestLMLPosition();
+    if (!pos) return rule.description;
+
+    auto indices = ntIndices(); // stack indices, ordered bottom -> top
+    size_t total = indices.size();
+
+    // Depth from top: depth = total - position_from_bottom (1-based)
+    size_t depthL1 = total - *pos; // bottom L - left operand
+    size_t depthM  = total - (*pos + 1); // M
+    size_t depthL2 = total - (*pos + 2); // top L - right operand
+
+    return "qm,ε(" + std::to_string(depthL1) + "L,"
+                   + std::to_string(depthM)  + "M,"
+                   + std::to_string(depthL2) + "L) -> qm(ε,L,ε)";
 }
 
 void Parser::printPopStep()
 {
-    std::cout << "⊢p ";
-    printConfiguration();
-    std::cout << "\n";
+    std::cout << "|-p " << theoreticalConfig()
+              << " --> " << practicalConfig() << "\n";
 }
 
-void Parser::printExpandStep(const Rule& rule)
+void Parser::printExpandStep(const Rule& rule, const std::string& desc)
 {
-    std::cout << "⊢e ";
-    printConfiguration();
-    std::cout << "  [" << rule.id << ": " << rule.description << "]\n";
+    std::cout << "|-e " << theoreticalConfig()
+              << " --> " << practicalConfig()
+              << "  [" << rule.id << ": " << desc << "]\n";
 }
-
-// ── Arithmetic ────────────────────────────────────────────────────────────────
 
 std::optional<double> Parser::compute(double left, TokenType op, double right)
 {
     switch (op)
     {
-        case TokenType::Plus:     return left + right;
-        case TokenType::Minus:    return left - right;
+        case TokenType::Plus: return left + right;
+        case TokenType::Minus: return left - right;
         case TokenType::Multiply: return left * right;
         case TokenType::Divide:
             if (right == 0.0) { std::cerr << "Division by zero\n"; return std::nullopt; }

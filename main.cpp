@@ -32,6 +32,7 @@ int main()
     return 0;
 }
 
+// Handle Ctrl+C gracefully.
 void signalHandler(int signal)
 {
     if (signal == SIGINT)
