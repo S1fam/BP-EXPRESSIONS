@@ -56,7 +56,11 @@ make
 ## Spuštění
 
 ```bash
-./parser_app
+make run
+```
+nebo
+```bash
+./expressions
 ```
 
 Po spuštění aplikace zadejte aritmetický výraz a stiskněte Enter.
