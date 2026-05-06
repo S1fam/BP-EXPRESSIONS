@@ -35,7 +35,7 @@ void Automaton::reset()
     stack.push_back(NT(NonTerminal::S));
 }
 
-// True when no M marker exists anywhere on the stack.
+// Vraci true, pokud neni na zasobniku neterminal M
 static bool noMOnStack(const Automaton& a)
 {
     for (const auto& sym : a.stack)
@@ -164,12 +164,12 @@ Automaton buildAutomaton()
         r.description = "ql,ε(1L) -> qm(L)";
         r.from_state = State::ql;
         r.to_state = State::qm;
-        r.input = std::nullopt; // epsilon transition
+        r.input = std::nullopt; // epsilon prechod
         r.conditions = { C(1, NonTerminal::L) };
         r.replacements = { { NT(NonTerminal::L) } };
         a.rules.push_back(r);
     }
-    // 11: qm,ε(1L) -> qp(L) - guard: no M left on stack
+    // 11: qm,ε(1L) -> qp(L) - guard: zadne M na zasobniku
     {
         Rule r;
         r.id = 11;
@@ -182,7 +182,7 @@ Automaton buildAutomaton()
         r.guard = noMOnStack;
         a.rules.push_back(r);
     }
-    // 12: qm,ε((k-1)L,kM,(k+1)L) -> qm(ε,L,ε) - applies to deepest LML triple
+    // 12: qm,ε((k-1)L,kM,(k+1)L) -> qm(ε,L,ε) - aplikuje se na nejhlubsi sekvenci LML
     {
         Rule r;
         r.id = 12;
@@ -190,7 +190,7 @@ Automaton buildAutomaton()
         r.from_state = State::qm;
         r.to_state = State::qm;
         r.input = std::nullopt;
-        r.use_deepest_LML = true; // conditions and replacements are unused, handled in Parser::applyDeepestLML()
+        r.use_deepest_LML = true;
         a.rules.push_back(r);
     }
     // 13: qp,ε(1L,2P,3L) -> qp(ε,L,ε)

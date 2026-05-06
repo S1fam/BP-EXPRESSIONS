@@ -13,43 +13,40 @@ public:
     std::optional<double> result() const { return result_; }
 
 private:
-    // State
-    Automaton automaton_;
-    std::vector<Token> tokens_;
-    size_t input_pos_ = 0;
-    std::optional<double> result_;
+    Automaton automaton_; // automat
+    std::vector<Token> tokens_; // vstup
+    size_t input_pos_ = 0; // pozice ve vstupu
+    std::optional<double> result_; // vysledek
 
     // Setup
     void tokenise(const std::string& expression);
 
-    // All stack indices that hold NonTerminals, ordered bottom -> top
+    // vsechny indexy zasobniku drzici neterminal, serazeno od dna k vrcholu
     std::vector<size_t> ntIndices() const;
 
-    // Stack index of the n-th deepest NonTerminal (1 = topmost)
+    // index na zasobniku n-teho nejhlubsiho neterminalu (1 = nejblize k vrcholu)
     std::optional<size_t> ntIndex(size_t depth) const;
 
     std::optional<size_t> deepestLMLPosition() const;
 
-    // Rule matching
+    // podminky pravidel
     bool matchesState(const Rule& rule) const;
     bool matchesInput(const Rule& rule) const;
     bool matchesConditions(const Rule& rule) const;
     bool matchesGuard(const Rule& rule) const;
     const Rule* findMatchingRule() const;
 
-    // Step execution
-    bool tryPop(); // Pop step: consume a matching terminal; bind Literal value to its L
-    void applyRule(const Rule& rule); // Expand step: apply a matched rule
+    // krokovani
+    bool tryPop();
+    void applyRule(const Rule& rule);
     void applyDeepestLML(const Rule& rule);
-    void applyConditionsRule(const Rule& rule); // Apply any rule using its conditions[] / replacements[] arrays.
+    void applyConditionsRule(const Rule& rule);
 
-    // Value computation
+    // vypocet hodnot
     std::optional<double> computeNewLValue(const Rule& rule) const;
-
-    // Perform the arithmetic for one binary operation.
     static std::optional<double> compute(double left, TokenType op, double right);
 
-    // Prints
+    // vypis
     std::string theoreticalInput() const;
     std::string theoreticalStack() const;
     std::string theoreticalConfig() const;
@@ -58,7 +55,6 @@ private:
     std::string practicalStack() const;
     std::string practicalConfig() const;
 
-    // Build the description string for a rule
     std::string ruleDescription(const Rule& rule) const;
 
     void printPopStep();

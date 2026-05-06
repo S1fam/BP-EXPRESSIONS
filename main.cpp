@@ -24,7 +24,7 @@ int main()
         return 1;
     }
 
-    std::cout << "\nAccepted.";
+    std::cout << "Accepted.";
     if (parser.result())
         std::cout << "  Result: " << *parser.result();
     std::cout << "\n";

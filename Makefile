@@ -1,22 +1,29 @@
 CXX      := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra
-TARGET   := parser_app
-SRCS     := main.cpp automaton.cpp parser.cpp tokenizer.cpp \
-            display_welcome.cpp recieve_expression.cpp
-OBJS     := $(SRCS:.cpp=.o)
+CXXFLAGS := -std=c++17 -Wall -Wextra -g -O0
+INCLUDES := -Iautomaton -Iparser -Itokenizer -Iutils
 
-.PHONY: all clean
+SRC_DIRS := automaton parser tokenizer utils .
+BUILD    := build
+
+SRCS := $(foreach dir,$(SRC_DIRS),$(wildcard $(dir)/*.cpp))
+OBJS := $(patsubst %.cpp,$(BUILD)/%.o,$(SRCS))
+
+TARGET := expressions
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+$(BUILD)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -rf $(BUILD) $(TARGET)
 
-run: $(TARGET)
-	./$(TARGET)
+INPUT := "a,a,b,b,c,c"
+run: all
+	./$(TARGET) json-examples/1.1-HZA.json $(INPUT)
+
+.PHONY: all clean run

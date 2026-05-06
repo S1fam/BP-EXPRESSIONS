@@ -10,5 +10,4 @@ void ReceiveExpressionOrExit(std::string& expression)
         std::cout << "| (or exit --> ctrl+c)                              |" << std::endl;
         std::getline(std::cin, expression);
     }
-    std::cout << "You entered: " << expression << std::endl;
 }
