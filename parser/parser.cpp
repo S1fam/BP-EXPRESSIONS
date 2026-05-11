@@ -1,3 +1,10 @@
+/**
+ * @file parser.cpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Implementace parseru pro analyzu a vyhodnoceni aritmetickych vyrazu
+ */
+
 #include <iostream>
 #include <sstream>
 #include <algorithm>

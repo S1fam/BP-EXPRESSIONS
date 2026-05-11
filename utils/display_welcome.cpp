@@ -1,3 +1,10 @@
+/**
+ * @file display_welcome.cpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Implementace funkce pro zobrazeni uvodniho textu a instrukci pro uzivatele
+ */
+
 #include "display_welcome.hpp"
 
 void displayWelcome()

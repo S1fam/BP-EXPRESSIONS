@@ -1,3 +1,10 @@
+/**
+ * @file main.cpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Vstupni bod programu, volani funkci pro zobrazeni uvodniho textu, ziskani vyrazu od uzivatele a spusteni parseru
+ */
+
 #include <iostream>
 #include <string>
 #include <csignal>
@@ -32,7 +39,7 @@ int main()
     return 0;
 }
 
-// Handle Ctrl+C gracefully.
+// zpracuje SIGINT (Ctrl+C) a korektne ukonci program
 void signalHandler(int signal)
 {
     if (signal == SIGINT)

@@ -1,3 +1,10 @@
+/**
+ * @file parser.hpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Definice parseru pro analyzu a vyhodnoceni aritmetickych vyrazu
+ */
+
 #pragma once
 
 #include <string>

@@ -1,3 +1,10 @@
+/**
+ * @file tokenizer.cpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Implementace tokenizeru pro rozklad aritmetickych vyrazu na tokeny
+ */
+
 #include "tokenizer.hpp"
 
 #include <iostream>
@@ -17,12 +24,12 @@ bool Tokenizer::tokenize(const std::string& expression, std::vector<Token>& toke
     {
         char c = expression[i];
 
-        if (std::isspace(static_cast<unsigned char>(c))) { ++i; continue; } // Skip whitespace.
+        if (std::isspace(static_cast<unsigned char>(c))) { ++i; continue; }
 
-        if (std::isdigit(static_cast<unsigned char>(c))) // Start of a number literal. 
+        if (std::isdigit(static_cast<unsigned char>(c))) // Zacatek literalu
         {
             std::string number;
-            // Consume all consecutive digits to form the complete number.
+            // Cteni celeho cisla, dokud nedojdeme na konec nebo nenarazime na ne-cislici
             while (i < expression.size() && std::isdigit(static_cast<unsigned char>(expression[i])))
                 number += expression[i++];
 
@@ -50,7 +57,7 @@ bool Tokenizer::validate(const std::vector<Token>& tokens)
     if (tokens.empty()) return false;
     for (size_t i = 0; i < tokens.size(); ++i)
     {
-        bool expectLiteral = (i % 2 == 0); // Even indices should be literals, odd indices operators.
+        bool expectLiteral = (i % 2 == 0); // liche indexy jsou operator, sude indexy jsou literal
         bool isLiteral = (tokens[i].type == TokenType::Literal);
         if (expectLiteral != isLiteral) return false;
     }

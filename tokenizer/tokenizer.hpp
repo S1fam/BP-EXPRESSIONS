@@ -1,3 +1,10 @@
+/**
+ * @file tokenizer.hpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Definice tokenizeru pro rozklad aritmetickych vyrazu na tokeny
+ */
+
 #pragma once
 
 #include <string>

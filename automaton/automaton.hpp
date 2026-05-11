@@ -1,3 +1,10 @@
+/**
+ * @file automaton.hpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Definice automatu a pomocnych funkci pro praci s nim
+ */
+
 #pragma once
 
 #include <string>

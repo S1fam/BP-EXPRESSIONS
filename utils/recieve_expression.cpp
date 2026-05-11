@@ -1,3 +1,10 @@
+/**
+ * @file recieve_expression.cpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Implementace funkce pro ziskani vyrazu od uzivatele, s instrukcemi a kontrolou prazdneho vstupu
+ */
+
 #include <iostream>
 #include "recieve_expression.hpp"
 

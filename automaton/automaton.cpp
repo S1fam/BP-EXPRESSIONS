@@ -1,3 +1,10 @@
+/**
+ * @file automaton.cpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Inicializace automatu a deklarace pomocnych funkci pro praci s nim
+ */
+
 #include "automaton.hpp"
 
 std::string stateToStr(State s)

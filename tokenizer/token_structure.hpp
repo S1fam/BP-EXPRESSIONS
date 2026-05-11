@@ -1,3 +1,10 @@
+/**
+ * @file token_structure.hpp
+ * @author Jaroslav Ištvan (xistva03)
+ * @date 2026
+ * @brief Definice struktury pro tokeny
+ */
+
 #pragma once
 
 #include <string>
@@ -17,6 +24,6 @@ struct Token
     TokenType type;
     std::string value;
 
-    // Numeric value, populated for Literal tokens
+    // numericka hodnota, pokud jde o literal, pro operator je nullopt
     std::optional<double> number;
 };
