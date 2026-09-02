@@ -1,3 +1,6 @@
+Tento repozitář obsahuje implementaci vytvořenou v rámci bakalářské práce na téma
+[Nové typy hlubokých zásobníkových automatů](https://dspace.vut.cz/items/27071039-f05f-47d1-b8cc-f48015a2b61b).
+
 # Expression Parser — VŘČPHZA
 
 Konzolová aplikace demonstrující vyhodnocování aritmetických výrazů pomocí
